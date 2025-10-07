@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FX ロット数計算機</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif; margin: 24px; background: #fafafa; }
+  h1 { font-size: 1.3rem; margin-bottom: 8px; text-align:center; }
+  small { color: #555; }
+  .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 12px; background:#fff; }
+  label { display:block; font-size: 0.95rem; margin: 8px 0 4px; }
+  input, select { width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; box-sizing:border-box; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn { display:block; width:100%; padding: 12px; font-size: 1rem; border: none; border-radius: 10px; background: #1a73e8; color: #fff; margin-top: 12px; }
+  .out { font-size: 1.1rem; }
+  .muted { color: #666; font-size: .9rem; }
+  .hint { font-size: .85rem; color:#444; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#e3f2fd; margin-left:6px; font-size:.8rem; color:#1565c0; }
+</style>
+</head>
+<body>
+  <h1>FX ロット数計算機 <span class="pill">オフライン対応</span></h1>
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>① 総資金額 <small>(口座通貨建て)</small></label>
+        <input id="balance" type="number" inputmode="decimal" placeholder="例: 1000000" value="1000000">
+      </div>
+      <div>
+        <label>④ 許容リスク（%）</label>
+        <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 0.5" value="0.5" step="0.01">
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>② エントリーレート</label>
+        <input id="entry" type="number" inputmode="decimal" placeholder="例: 150.250" step="0.00001">
+      </div>
+      <div>
+        <label>③ ストップロスレート</label>
+        <input id="stop" type="number" inputmode="decimal" placeholder="例: 149.950" step="0.00001">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>通貨ペア種別</label>
+        <select id="pipType">
+          <option value="JPY">JPYペア（USD/JPYなど, 1 pip = 0.01）</option>
+          <option value="NONJPY">非JPYペア（EUR/USDなど, 1 pip = 0.0001）</option>
+          <option value="CUSTOM">カスタム</option>
+        </select>
+      </div>
+      <div>
+        <label>カスタム Pips サイズ</label>
+        <input id="pipSize" type="number" inputmode="decimal" step="0.00001" value="0.01">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>1ロットの契約数量</label>
+        <input id="contractSize" type="number" inputmode="decimal" value="100000">
+        <div class="hint">多くのFXは 100,000 通貨 = 1ロット</div>
+      </div>
+      <div>
+        <label>換算レート（見積通貨→口座通貨）</label>
+        <input id="convRate" type="number" inputmode="decimal" step="0.00001" value="1">
+        <div class="hint">例: 口座JPYでEUR/USD取引→USD/JPYを入力</div>
+      </div>
+    </div>
+
+    <button class="btn" onclick="calc()">計算する</button>
+  </div>
+
+  <div class="card out" id="result" aria-live="polite">
+    ここに結果が表示されます。
+  </div>
+
+  <div class="muted">
+    <p>計算式：</p>
+    <ul>
+      <li>許容損失額 = 総資金額 × (許容リスク% ÷ 100)</li>
+      <li>ストップ幅[pips] = |エントリー − ストップ| ÷ pipサイズ</li>
+      <li>1ロットのピップ値 = (契約数量 × pipサイズ) × 換算レート</li>
+      <li>推奨ロット = 許容損失額 ÷ (ストップ幅 × 1ロットのピップ値)</li>
+    </ul>
+  </div>
+
+<script>
+function updatePipSize() {
+  const type = document.getElementById('pipType').value;
+  const pipSizeInput = document.getElementById('pipSize');
+  if (type === 'JPY') { pipSizeInput.value = 0.01; pipSizeInput.disabled = true; }
+  else if (type === 'NONJPY') { pipSizeInput.value = 0.0001; pipSizeInput.disabled = true; }
+  else { pipSizeInput.disabled = false; }
+}
+document.getElementById('pipType').addEventListener('change', updatePipSize);
+updatePipSize();
+
+function fmt(n) {
+  if (!isFinite(n)) return '-';
+  return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 4 }).format(n);
+}
+
+function calc() {
+  const balance = parseFloat(document.getElementById('balance').value);
+  const riskPct = parseFloat(document.getElementById('riskPct').value);
+  const entry = parseFloat(document.getElementById('entry').value);
+  const stop = parseFloat(document.getElementById('stop').value);
+  const pipSize = parseFloat(document.getElementById('pipSize').value);
+  const contractSize = parseFloat(document.getElementById('contractSize').value);
+  const convRate = parseFloat(document.getElementById('convRate').value);
+
+  if ([balance, riskPct, entry, stop, pipSize, contractSize, convRate].some(v => !isFinite(v))) {
+    document.getElementById('result').innerHTML = "未入力の項目があります。";
+    return;
+  }
+
+  const riskAmt = balance * (riskPct / 100);
+  const stopPips = Math.abs(entry - stop) / pipSize;
+  const pipValPerLot = (contractSize * pipSize) * convRate;
+  const lots = riskAmt / (stopPips * pipValPerLot);
+  const mini = lots * 10;
+  const micro = lots * 100;
+  const perPip = pipValPerLot * lots;
+
+  const res = `
+    <div><b>推奨ロット：</b> <span class="mono">${fmt(lots)}</span> ロット</div>
+    <div class="hint">ミニロット: ${fmt(mini)} ×0.1 / マイクロ: ${fmt(micro)} ×0.01</div>
+    <hr>
+    <div>許容損失額：${fmt(riskAmt)}</div>
+    <div>ストップ幅：${fmt(stopPips)} pips</div>
+    <div>1ロットのピップ値：${fmt(pipValPerLot)}</div>
+    <div>保有あたりのピップ値：${fmt(perPip)} / pip</div>
+  `;
+  document.getElementById('result').innerHTML = res;
+}
+</script>
+</body>
+</html>
