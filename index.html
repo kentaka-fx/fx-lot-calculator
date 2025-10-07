@@ -25,22 +25,22 @@
   <div class="card">
     <div class="row">
       <div>
-        <label>① 総資金額 <small>(口座通貨建て)</small></label>
-        <input id="balance" type="number" inputmode="decimal" placeholder="例: 1000000" value="1000000">
+        <label>① 総資金額</label>
+        <input id="balance" type="number" inputmode="decimal" placeholder="例: 15000000" value="15000000">
       </div>
       <div>
-        <label>④ 許容リスク（%）</label>
+        <label>② 許容リスク</label>
         <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 0.5" value="0.5" step="0.01">
       </div>
     </div>
 
     <div class="row">
       <div>
-        <label>② エントリーレート</label>
+        <label>③ エントリー</label>
         <input id="entry" type="number" inputmode="decimal" placeholder="例: 150.250" step="0.00001">
       </div>
       <div>
-        <label>③ ストップロスレート</label>
+        <label>④ ストップ</label>
         <input id="stop" type="number" inputmode="decimal" placeholder="例: 149.950" step="0.00001">
       </div>
     </div>
@@ -98,8 +98,6 @@ function calc() {
     <hr>
     <div>許容損失額：${fmt(riskAmt)}</div>
     <div>ストップ幅：${fmt(stopPips)} pips</div>
-    <div>1ロットのピップ値：${fmt(pipValPerLot)}</div>
-    <div>保有あたりのピップ値：${fmt(perPip)} / pip</div>
   `;
   document.getElementById('result').innerHTML = res;
 }
