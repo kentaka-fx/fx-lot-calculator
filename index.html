@@ -9,27 +9,47 @@
   h1 { font-size: 1.3rem; margin-bottom: 8px; text-align:center; }
   .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 12px; background:#fff; }
   label { display:block; font-size: 0.95rem; margin: 8px 0 4px; }
-  input { width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; box-sizing:border-box; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .btn { display:block; width:100%; padding: 12px; font-size: 1rem; border: none; border-radius: 10px; background: #1a73e8; color: #fff; margin-top: 12px; }
+  input[type="number"] { width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; box-sizing:border-box; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .full-row { margin-bottom: 12px; }
+  .btn { display:block; width:100%; padding: 12px; font-size: 1rem; border: none; border-radius: 10px; background: #1a73e8; color: #fff; margin-top: 12px; cursor: pointer; }
+  .btn:hover { background: #1557b0; }
   .out { font-size: 1.1rem; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
   .muted { color: #666; font-size: .9rem; }
   hr { border: none; border-top: 1px solid #e0e0e0; margin: 10px 0; }
+  
+  /* 通貨切り替えスイッチのスタイル */
+  .switch-group { display: flex; gap: 8px; margin-top: 4px; }
+  .switch-label { flex: 1; text-align: center; background: #eee; padding: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
+  input[type="radio"] { display: none; }
+  input[type="radio"]:checked + .switch-label { background: #1a73e8; color: white; }
 </style>
 </head>
 <body>
   <h1>ロット数計算機</h1>
 
   <div class="card">
+    <!-- 通貨切り替えスイッチ -->
+    <div class="full-row">
+      <label>口座通貨 / 取引ペア種別</label>
+      <div class="switch-group">
+        <input type="radio" id="currencyJpy" name="currency" value="JPY" checked onchange="onCurrencyChange()">
+        <label for="currencyJpy" class="switch-label">円建て (クロス円)</label>
+        
+        <input type="radio" id="currencyUsd" name="currency" value="USD" onchange="onCurrencyChange()">
+        <label for="currencyUsd" class="switch-label">ドル建て (ドルストレート)</label>
+      </div>
+    </div>
+
     <div class="row">
       <div>
-        <label>① 総資金額</label>
-        <input id="balance" type="number" inputmode="decimal" placeholder="例: 15000000" value="15000000">
+        <label>① 総資金額 (<span id="unitBalance">円</span>)</label>
+        <input id="balance" type="number" inputmode="decimal" placeholder="例: 1500000" value="1500000">
       </div>
       <div>
         <label>② 許容リスク (%)</label>
-        <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 0.5" value="1.0" step="0.01">
+        <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 1.0" value="1.0" step="0.01">
       </div>
     </div>
 
@@ -53,22 +73,49 @@
       <li>許容損失額 = 総資金額 × (許容リスク% ÷ 100)</li>
       <li>ロット数 = 許容損失額 ÷ (損切り幅[pips] × 1ロットの1pip価値)</li>
     </ul>
+    <p>※1ロット＝100,000通貨で計算しています。</p>
   </div>
 
 <script>
-function fmt(n) {
+// 通貨切り替え時にラベルとデフォルト値を調整
+function onCurrencyChange() {
+  const isJpy = document.getElementById('currencyJpy').checked;
+  const unitBalance = document.getElementById('unitBalance');
+  const balanceInput = document.getElementById('balance');
+  
+  if (isJpy) {
+    unitBalance.textContent = '円';
+    if (balanceInput.value === '10000') balanceInput.value = '1500000'; // ドル時のデフォルトなら円に戻す
+  } else {
+    unitBalance.textContent = '$';
+    if (balanceInput.value === '1500000') balanceInput.value = '10000'; // 円時のデフォルトならドルに変える
+  }
+  // 結果表示をリセット
+  document.getElementById('result').innerHTML = "ここに結果が表示されます。";
+}
+
+function fmt(n, currencySymbol = '') {
   if (!isFinite(n)) return '-';
-  return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 4 }).format(n);
+  const formatted = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 4 }).format(n);
+  return currencySymbol ? `${currencySymbol}${formatted}` : formatted;
 }
 
 function calc() {
   const balance = parseFloat(document.getElementById('balance').value);
   const riskPct = parseFloat(document.getElementById('riskPct').value);
   const stopPips = parseFloat(document.getElementById('stopPips').value);
+  
+  // どちらの通貨が選ばれているか取得
+  const isJpy = document.getElementById('currencyJpy').checked;
 
-  const pipSize = 0.01;        // JPYペア
+  // 通貨ごとの設定
+  const pipSize = isJpy ? 0.01 : 0.0001; // 円建てなら0.01(銭)、ドル建てなら0.0001(ドル)
+  const currencySymbol = isJpy ? '円' : '$';
+  const symbolPrefix = isJpy ? '' : '$';
+  const symbolSuffix = isJpy ? ' 円' : '';
+
   const contractSize = 100000; // 1ロット = 100,000 通貨
-  const convRate = 1;          // 見積通貨→口座通貨
+  const convRate = 1;          // 見積通貨→口座通貨 (同一通貨ペア種別のため1固定)
 
   if ([balance, riskPct, stopPips].some(v => !isFinite(v))) {
     document.getElementById('result').innerHTML = "未入力の項目があります。";
@@ -76,13 +123,13 @@ function calc() {
   }
 
   const riskAmt = balance * (riskPct / 100);
-  const pipValPerLot = (contractSize * pipSize) * convRate; // = 1,000円
+  const pipValPerLot = (contractSize * pipSize) * convRate; // 円建てなら1,000円、ドル建てなら10ドル
   const lots = riskAmt / (stopPips * pipValPerLot);
 
   const res = `
     <div><b>推奨ロット：</b> <span class="mono">${fmt(lots)}</span> ロット</div>
     <hr>
-    <div>許容損失額：${fmt(riskAmt)}</div>
+    <div>許容損失額：${symbolPrefix}${fmt(riskAmt)}${symbolSuffix}</div>
     <div>損切り幅：${fmt(stopPips)} pips</div>
   `;
   document.getElementById('result').innerHTML = res;
