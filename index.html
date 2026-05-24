@@ -35,10 +35,10 @@
       <label>口座通貨 / 取引ペア種別</label>
       <div class="switch-group">
         <input type="radio" id="currencyJpy" name="currency" value="JPY" checked onchange="onCurrencyChange()">
-        <label for="currencyJpy" class="switch-label">円建て (クロス円)</label>
+        <label for="currencyJpy" class="switch-label">円建て</label>
         
         <input type="radio" id="currencyUsd" name="currency" value="USD" onchange="onCurrencyChange()">
-        <label for="currencyUsd" class="switch-label">ドル建て (ドルストレート)</label>
+        <label for="currencyUsd" class="switch-label">ドル建て</label>
       </div>
     </div>
 
@@ -49,14 +49,14 @@
       </div>
       <div>
         <label>② 許容リスク (%)</label>
-        <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 1.0" value="1.0" step="0.01">
+        <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 0.5" value="0.5" step="0.01">
       </div>
     </div>
 
     <div class="row">
       <div>
         <label>③ 損切り幅（pips）</label>
-        <input id="stopPips" type="number" inputmode="decimal" placeholder="例: 10" step="0.1">
+        <input id="stopPips" type="number" inputmode="decimal" placeholder="例: 20" value="20" step="0.1">
       </div>
     </div>
 
@@ -85,10 +85,10 @@ function onCurrencyChange() {
   
   if (isJpy) {
     unitBalance.textContent = '円';
-    if (balanceInput.value === '10000') balanceInput.value = '1500000'; // ドル時のデフォルトなら円に戻す
+    if (balanceInput.value === '50000') balanceInput.value = '1500000'; // ドル時のデフォルトなら円に戻す
   } else {
     unitBalance.textContent = '$';
-    if (balanceInput.value === '1500000') balanceInput.value = '10000'; // 円時のデフォルトならドルに変える
+    if (balanceInput.value === '1500000') balanceInput.value = '50000'; // 円時のデフォルトならドルに変える
   }
   // 結果表示をリセット
   document.getElementById('result').innerHTML = "ここに結果が表示されます。";
