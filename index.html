@@ -45,7 +45,7 @@
     <div class="row">
       <div>
         <label>① 総資金額 (<span id="unitBalance">円</span>)</label>
-        <input id="balance" type="number" inputmode="decimal" placeholder="例: 1500000" value="1500000">
+        <input id="balance" type="number" inputmode="decimal" placeholder="例: 15000000" value="15000000">
       </div>
       <div>
         <label>② 許容リスク (%)</label>
@@ -85,10 +85,10 @@ function onCurrencyChange() {
   
   if (isJpy) {
     unitBalance.textContent = '円';
-    if (balanceInput.value === '50000') balanceInput.value = '1500000'; // ドル時のデフォルトなら円に戻す
+    if (balanceInput.value === '50000') balanceInput.value = '15000000'; // ドル時のデフォルトなら円に戻す
   } else {
     unitBalance.textContent = '$';
-    if (balanceInput.value === '1500000') balanceInput.value = '50000'; // 円時のデフォルトならドルに変える
+    if (balanceInput.value === '15000000') balanceInput.value = '50000'; // 円時のデフォルトならドルに変える
   }
   // 結果表示をリセット
   document.getElementById('result').innerHTML = "ここに結果が表示されます。";
