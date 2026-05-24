@@ -77,20 +77,36 @@
   </div>
 
 <script>
-// 通貨切り替え時にラベルとデフォルト値を調整
+// 直前の通貨状態を記憶（初期値はドル建て）
+let currentCurrency = 'USD'; 
+
+// 簡易的な換算レート（1ドル＝150円換算。お好みのレートに調整してください）
+const USDJPY_RATE = 150; 
+
 function onCurrencyChange() {
   const isJpy = document.getElementById('currencyJpy').checked;
+  const nextCurrency = isJpy ? 'JPY' : 'USD';
+  
   const unitBalance = document.getElementById('unitBalance');
   const balanceInput = document.getElementById('balance');
-  
-  if (isJpy) {
-    unitBalance.textContent = '円';
-    if (balanceInput.value === '50000') balanceInput.value = '15000000'; // ドル時のデフォルトなら円に変える
-  } else {
-    unitBalance.textContent = '$';
-    if (balanceInput.value === '15000000') balanceInput.value = '50000'; // 円時のデフォルトならドルに戻す
+  let currentVal = parseFloat(balanceInput.value);
+
+  // 通貨に変更があった場合のみ、数値を換算して保持
+  if (currentCurrency !== nextCurrency && isFinite(currentVal)) {
+    if (nextCurrency === 'JPY') {
+      // ドルから円へ（例: 50,000ドル × 150 ＝ 7,500,000円）
+      balanceInput.value = Math.round(currentVal * USDJPY_RATE);
+      unitBalance.textContent = '円';
+    } else {
+      // 円からドルへ（例: 7,500,000円 ÷ 150 ＝ 50,000ドル）
+      balanceInput.value = Math.round(currentVal / USDJPY_RATE);
+      unitBalance.textContent = '$';
+    }
+    // 現在の状態を更新
+    currentCurrency = nextCurrency; 
   }
-  // 結果表示をリセット
+  
+  // 結果表示をリセット、または自動再計算したい場合は calc() に書き換えてください
   document.getElementById('result').innerHTML = "ここに結果が表示されます。";
 }
 
@@ -105,16 +121,14 @@ function calc() {
   const riskPct = parseFloat(document.getElementById('riskPct').value);
   const stopPips = parseFloat(document.getElementById('stopPips').value);
   
-  // どちらの通貨が選ばれているか取得
   const isJpy = document.getElementById('currencyJpy').checked;
 
-  // 通貨ごとの設定
-  const pipSize = isJpy ? 0.01 : 0.0001; // 円建てなら0.01(銭)、ドル建てなら0.0001(ドル)
+  const pipSize = isJpy ? 0.01 : 0.0001; 
   const symbolPrefix = isJpy ? '' : '$';
   const symbolSuffix = isJpy ? ' 円' : '';
 
-  const contractSize = 100000; // 1ロット = 100,000 通貨
-  const convRate = 1;          // 見積通貨→口座通貨 (同一通貨ペア種別のため1固定)
+  const contractSize = 100000; 
+  const convRate = 1;          
 
   if ([balance, riskPct, stopPips].some(v => !isFinite(v))) {
     document.getElementById('result').innerHTML = "未入力の項目があります。";
@@ -122,7 +136,7 @@ function calc() {
   }
 
   const riskAmt = balance * (riskPct / 100);
-  const pipValPerLot = (contractSize * pipSize) * convRate; // 円建てなら1,000円、ドル建てなら10ドル
+  const pipValPerLot = (contractSize * pipSize) * convRate; 
   const lots = riskAmt / (stopPips * pipValPerLot);
 
   const res = `
