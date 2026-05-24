@@ -10,9 +10,11 @@
   .card { border: 1px solid #ddd; border-radius: 12px; padding: 16px; margin-bottom: 12px; background:#fff; }
   label { display:block; font-size: 0.95rem; margin: 8px 0 4px; }
   input[type="number"] { width: 100%; padding: 10px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; box-sizing:border-box; }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .full-row { margin-bottom: 12px; }
-  .btn { display:block; width:100%; padding: 12px; font-size: 1rem; border: none; border-radius: 10px; background: #1a73e8; color: #fff; margin-top: 12px; cursor: pointer; }
+  
+  /* すべての入力項目を縦並びに変更 */
+  .field-group { margin-bottom: 12px; }
+  
+  .btn { display:block; width:100%; padding: 12px; font-size: 1rem; border: none; border-radius: 10px; background: #1a73e8; color: #fff; margin-top: 16px; cursor: pointer; }
   .btn:hover { background: #1557b0; }
   .out { font-size: 1.1rem; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
@@ -30,34 +32,32 @@
   <h1>ロット数計算機</h1>
 
   <div class="card">
-    <!-- 通貨切り替えスイッチ -->
-    <div class="full-row">
+    <!-- 通貨切り替えスイッチ（ドル建てを左に配置） -->
+    <div class="field-group">
       <label>口座通貨 / 取引ペア種別</label>
       <div class="switch-group">
-        <input type="radio" id="currencyJpy" name="currency" value="JPY" onchange="onCurrencyChange()">
-        <label for="currencyJpy" class="switch-label">円建て</label>
-        
         <input type="radio" id="currencyUsd" name="currency" value="USD" checked onchange="onCurrencyChange()">
         <label for="currencyUsd" class="switch-label">ドル建て</label>
+
+        <input type="radio" id="currencyJpy" name="currency" value="JPY" onchange="onCurrencyChange()">
+        <label for="currencyJpy" class="switch-label">円建て</label>
       </div>
     </div>
 
-    <div class="row">
-      <div>
-        <label>① 総資金額 (<span id="unitBalance">$</span>)</label>
-        <input id="balance" type="number" inputmode="decimal" placeholder="例: 50000" value="50000">
-      </div>
-      <div>
-        <label>② 許容リスク (%)</label>
-        <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 0.5" value="0.5" step="0.01">
-      </div>
+    <!-- 各項目をすっきり縦並びに -->
+    <div class="field-group">
+      <label>① 総資金額 (<span id="unitBalance">$</span>)</label>
+      <input id="balance" type="number" inputmode="decimal" placeholder="例: 50000" value="50000">
+    </div>
+    
+    <div class="field-group">
+      <label>② 許容リスク (%)</label>
+      <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 0.5" value="0.5" step="0.01">
     </div>
 
-    <div class="row">
-      <div>
-        <label>③ 損切り幅（pips）</label>
-        <input id="stopPips" type="number" inputmode="decimal" placeholder="例: 20" value="20" step="0.1">
-      </div>
+    <div class="field-group">
+      <label>③ 損切り幅（pips）</label>
+      <input id="stopPips" type="number" inputmode="decimal" placeholder="例: 20" value="20" step="0.1">
     </div>
 
     <button class="btn" onclick="calc()">計算する</button>
@@ -77,11 +77,14 @@
   </div>
 
 <script>
-// 直前の通貨状態を記憶（初期値はドル建て）
-let currentCurrency = 'USD'; 
+// それぞれの通貨の数値を個別に記憶するオブジェクト（初期値を設定）
+const savedBalances = {
+  USD: 50000,
+  JPY: 15000000
+};
 
-// 簡易的な換算レート（1ドル＝150円換算。お好みのレートに調整してください）
-const USDJPY_RATE = 150; 
+// 直前の通貨状態を記憶
+let currentCurrency = 'USD'; 
 
 function onCurrencyChange() {
   const isJpy = document.getElementById('currencyJpy').checked;
@@ -89,24 +92,22 @@ function onCurrencyChange() {
   
   const unitBalance = document.getElementById('unitBalance');
   const balanceInput = document.getElementById('balance');
-  let currentVal = parseFloat(balanceInput.value);
 
-  // 通貨に変更があった場合のみ、数値を換算して保持
-  if (currentCurrency !== nextCurrency && isFinite(currentVal)) {
-    if (nextCurrency === 'JPY') {
-      // ドルから円へ（例: 50,000ドル × 150 ＝ 7,500,000円）
-      balanceInput.value = Math.round(currentVal * USDJPY_RATE);
-      unitBalance.textContent = '円';
-    } else {
-      // 円からドルへ（例: 7,500,000円 ÷ 150 ＝ 50,000ドル）
-      balanceInput.value = Math.round(currentVal / USDJPY_RATE);
-      unitBalance.textContent = '$';
-    }
-    // 現在の状態を更新
+  if (currentCurrency !== nextCurrency) {
+    // 現在入力されている値を現在の通貨枠に保存
+    savedBalances[currentCurrency] = parseFloat(balanceInput.value) || 0;
+
+    // 切り替え先の通貨の記憶している値を入力欄にセット
+    balanceInput.value = savedBalances[nextCurrency];
+    
+    // 単位ラベルの更新
+    unitBalance.textContent = isJpy ? '円' : '$';
+
+    // 状態を更新
     currentCurrency = nextCurrency; 
   }
   
-  // 結果表示をリセット、または自動再計算したい場合は calc() に書き換えてください
+  // 結果表示をリセット
   document.getElementById('result').innerHTML = "ここに結果が表示されます。";
 }
 
