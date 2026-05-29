@@ -36,18 +36,19 @@
     <div class="field-group">
       <label>口座通貨 / 取引ペア種別</label>
       <div class="switch-group">
+        <input type="radio" id="currencyJpy" name="currency" value="JPY" checked onchange="onCurrencyChange()">
+        <label for="currencyJpy" class="switch-label">円建て</label>
+        
         <input type="radio" id="currencyUsd" name="currency" value="USD" onchange="onCurrencyChange()">
         <label for="currencyUsd" class="switch-label">ドル建て</label>
 
-        <input type="radio" id="currencyJpy" name="currency" value="JPY" checked onchange="onCurrencyChange()">
-        <label for="currencyJpy" class="switch-label">円建て</label>
       </div>
     </div>
 
     <!-- 各項目をすっきり縦並びに -->
     <div class="field-group">
-      <label>① 総資金額 (<span id="unitBalance">$</span>)</label>
-      <input id="balance" type="number" inputmode="decimal" placeholder="例: 25000" value="25000">
+      <label>① 総資金額 (<span id="unitBalance">円</span>)</label>
+      <input id="balance" type="number" inputmode="decimal" placeholder="例: 15000000" value="15000000">
     </div>
     
     <div class="field-group">
@@ -84,7 +85,7 @@ const savedBalances = {
 };
 
 // 直前の通貨状態を記憶
-let currentCurrency = 'USD'; 
+let currentCurrency = 'JPY'; 
 
 function onCurrencyChange() {
   const isJpy = document.getElementById('currencyJpy').checked;
