@@ -35,20 +35,32 @@
 
   <div class="card">
     
-    <!-- 1. 取引ペアの選択 -->
+    <!-- 1. 口座通貨の選択 -->
+    <div class="field-group">
+      <label>口座通貨</label>
+      <div class="switch-group">
+        <input type="radio" id="accJpy" name="account" value="JPY" checked onchange="onCurrencyChange()">
+        <label for="accJpy" class="switch-label">円口座</label>
+        
+        <input type="radio" id="accUsd" name="account" value="USD" onchange="onCurrencyChange()">
+        <label for="accUsd" class="switch-label">ドル口座</label>
+      </div>
+    </div>
+
+    <!-- 2. 取引ペアの選択 -->
     <div class="field-group">
       <label>取引する通貨ペア</label>
       <div class="switch-group">
-        <input type="radio" id="pairJpy" name="pair" value="JPY" checked onchange="clearResult()">
+        <input type="radio" id="pairJpy" name="pair" value="JPY" checked>
         <label for="pairJpy" class="switch-label">
           クロス円
-          <!-- <span class="switch-sub">(USD/JPY, EUR/JPY等)</span> -->
+          <span class="switch-sub">(USD/JPY, EUR/JPY等)</span>
         </label>
         
-        <input type="radio" id="pairUsd" name="pair" value="USD" onchange="clearResult()">
+        <input type="radio" id="pairUsd" name="pair" value="USD">
         <label for="pairUsd" class="switch-label">
           ドルストレート
-          <!-- <span class="switch-sub">(EUR/USD, GBP/USD等)</span> -->
+          <span class="switch-sub">(EUR/USD, GBP/USD等)</span>
         </label>
       </div>
     </div>
@@ -56,13 +68,13 @@
     <hr>
 
     <div class="field-group">
-      <label>① 総資金額 (円)</label>
-      <input id="balance" type="number" inputmode="decimal" placeholder="例: 10000000" value="10000000">
+      <label>① 総資金額 (<span id="unitBalance">円</span>)</label>
+      <input id="balance" type="number" inputmode="decimal" placeholder="例: 5000000" value="5000000">
     </div>
     
     <div class="field-group">
       <label>② 許容リスク (%)</label>
-      <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 0.5" value="0.5" step="0.01">
+      <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 1.0" value="1.0" step="0.01">
     </div>
 
     <div class="field-group">
@@ -72,10 +84,10 @@
 
     <hr>
 
-    <!-- 2. ドル円レート設定 -->
+    <!-- 3. ドル円レート設定 -->
     <div class="field-group" style="margin-bottom: 0;">
       <label>④ 現在のドル円レート (換算用)</label>
-      <span class="sub-label">※ドルストレートを取引する際、ドルの価値を円に換算するために使用します。</span>
+      <span class="sub-label">※円口座でドルストレート、またはドル口座でクロス円を取引する際の換算に使用します。</span>
       <input id="usdjpyRate" type="number" inputmode="decimal" placeholder="例: 160" value="160" step="0.01">
     </div>
 
@@ -93,28 +105,57 @@
       <li>ロット数 = 許容損失額 ÷ (損切り幅[pips] × 1ロットの1pip価値)</li>
     </ul>
     <p>※1ロット＝100,000通貨で計算しています。</p>
-    <p>※ドルストレートの取引では、④に入力したドル円レートを用いて1pipの価値を円に換算しています。</p>
+    <p>※口座通貨と取引ペアの決済通貨（右側の通貨）が異なる場合、④に入力したドル円レートを用いて自動で価値を換算します。</p>
   </div>
 
 <script>
-// 入力切り替え時に結果表示をリセット
-function clearResult() {
+// それぞれの通貨の数値を個別に記憶するオブジェクト
+const savedBalances = {
+  USD: 25000,
+  JPY: 5000000
+};
+
+// 直前の口座通貨状態を記憶
+let currentCurrency = 'JPY'; 
+
+function onCurrencyChange() {
+  const isJpy = document.getElementById('accJpy').checked;
+  const nextCurrency = isJpy ? 'JPY' : 'USD';
+  
+  const unitBalance = document.getElementById('unitBalance');
+  const balanceInput = document.getElementById('balance');
+
+  if (currentCurrency !== nextCurrency) {
+    // 現在入力されている値を現在の口座枠に保存
+    savedBalances[currentCurrency] = parseFloat(balanceInput.value) || 0;
+
+    // 切り替え先の通貨の記憶している値を入力欄にセット
+    balanceInput.value = savedBalances[nextCurrency];
+    
+    // 単位ラベルの更新
+    unitBalance.textContent = isJpy ? '円' : '$';
+
+    // 状態を更新
+    currentCurrency = nextCurrency; 
+  }
+  
+  // 結果表示をリセット
   document.getElementById('result').innerHTML = "ここに結果が表示されます。";
 }
 
-// 数値のフォーマット（カンマ区切り）
-function fmt(n) {
+function fmt(n, currencySymbol = '') {
   if (!isFinite(n) || isNaN(n)) return '-';
-  return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 4 }).format(n);
+  const formatted = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 4 }).format(n);
+  return currencySymbol ? `${currencySymbol}${formatted}` : formatted;
 }
 
-// 計算処理
 function calc() {
   const balance = parseFloat(document.getElementById('balance').value);
   const riskPct = parseFloat(document.getElementById('riskPct').value);
   const stopPips = parseFloat(document.getElementById('stopPips').value);
   const usdjpyRate = parseFloat(document.getElementById('usdjpyRate').value);
   
+  const isAccJpy = document.getElementById('accJpy').checked;   // 口座が円か
   const isPairJpy = document.getElementById('pairJpy').checked; // 取引ペアがクロス円か
 
   // 未入力・不正値チェック
@@ -132,21 +173,31 @@ function calc() {
   // （クロス円なら 1000 JPY、ドルストなら 10 USD になる）
   const pipValueInQuote = contractSize * pipSize; 
 
-  // 円への換算レートを決定
-  // クロス円の場合は換算不要(1)、ドルストレートの場合は入力されたドル円レートを使用
-  const convRate = isPairJpy ? 1 : usdjpyRate; 
+  // 口座通貨への換算レートを決定
+  let convRate = 1;
+  if (isAccJpy && !isPairJpy) {
+    // 【円口座】で【ドルストレート】を取引する場合 (USDを円に換算)
+    convRate = usdjpyRate;
+  } else if (!isAccJpy && isPairJpy) {
+    // 【ドル口座】で【クロス円】を取引する場合 (JPYをドルに換算)
+    convRate = 1 / usdjpyRate;
+  }
+  // ※「円口座でクロス円」「ドル口座でドルスト」の場合は換算不要(1のまま)
 
-  // 円ベースでの1ロットあたりの1pipの価値
+  // 口座通貨ベースの1pipの価値
   const pipValPerLot = pipValueInQuote * convRate; 
 
   // 許容損失額とロット数の計算
   const riskAmt = balance * (riskPct / 100);
   const lots = riskAmt / (stopPips * pipValPerLot);
 
+  const symbolPrefix = isAccJpy ? '' : '$';
+  const symbolSuffix = isAccJpy ? ' 円' : '';
+
   const res = `
     <div><b>推奨ロット：</b> <span class="mono">${fmt(lots)}</span> ロット</div>
     <hr>
-    <div>許容損失額：${fmt(riskAmt)} 円</div>
+    <div>許容損失額：${symbolPrefix}${fmt(riskAmt)}${symbolSuffix}</div>
     <div>損切り幅：${fmt(stopPips)} pips</div>
   `;
   document.getElementById('result').innerHTML = res;
