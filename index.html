@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ロット数計算機</title>
+<title>ゴールド専用ロット数計算機</title>
 <style>
   body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif; margin: 24px; background: #fafafa; }
   h1 { font-size: 1.3rem; margin-bottom: 8px; text-align:center; }
@@ -18,187 +18,111 @@
   .btn:hover { background: #1557b0; }
   .out { font-size: 1.1rem; line-height: 1.6; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 1.3rem; color: #1a73e8; font-weight: bold; }
+  .mono-tp { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 1.2rem; color: #2e7d32; font-weight: bold; }
   .muted { color: #666; font-size: .9rem; line-height: 1.5; }
   hr { border: none; border-top: 1px solid #e0e0e0; margin: 16px 0; }
-  
-  /* 通貨切り替えスイッチのスタイル */
-  .switch-group { display: flex; gap: 8px; margin-top: 4px; }
-  .switch-label { flex: 1; text-align: center; background: #eee; padding: 10px 4px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem; line-height: 1.3; }
-  .switch-sub { display: block; font-size: 0.75rem; font-weight: normal; margin-top: 2px; color: #555; }
-  input[type="radio"] { display: none; }
-  input[type="radio"]:checked + .switch-label { background: #1a73e8; color: white; }
-  input[type="radio"]:checked + .switch-label .switch-sub { color: #e8f0fe; }
 </style>
 </head>
 <body>
-  <h1>ロット数計算機</h1>
+  <h1>ゴールド専用ロット数計算機</h1>
 
   <div class="card">
-    
-    <!-- 1. 口座通貨の選択 -->
-    <div class="field-group">
-      <label>口座通貨</label>
-      <div class="switch-group">
-        <input type="radio" id="accJpy" name="account" value="JPY" checked onchange="onCurrencyChange()">
-        <label for="accJpy" class="switch-label">円口座</label>
-        
-        <input type="radio" id="accUsd" name="account" value="USD" onchange="onCurrencyChange()">
-        <label for="accUsd" class="switch-label">ドル口座</label>
-      </div>
-    </div>
-
-    <!-- 2. 取引ペアの選択 -->
-    <div class="field-group">
-      <label>取引する通貨ペア</label>
-      <div class="switch-group">
-        <input type="radio" id="pairJpy" name="pair" value="JPY" checked>
-        <label for="pairJpy" class="switch-label">
-          クロス円
-          <span class="switch-sub">(USD/JPY, EUR/JPY等)</span>
-        </label>
-        
-        <input type="radio" id="pairUsd" name="pair" value="USD">
-        <label for="pairUsd" class="switch-label">
-          ドルストレート
-          <span class="switch-sub">(EUR/USD, GBP/USD等)</span>
-        </label>
-      </div>
+    <div style="text-align: center; margin-bottom: 12px; font-size: 0.9rem; color: #555;">
+      <span>口座環境: <b>USD建て</b></span> | <span>リスク: <b>0.5% 固定</b></span>
     </div>
     
-    <hr>
+    <hr style="margin-top: 0;">
 
     <div class="field-group">
-      <label>① 総資金額 (<span id="unitBalance">円</span>)</label>
-      <input id="balance" type="number" inputmode="decimal" placeholder="例: 5000000" value="5000000">
+      <label>① 総資金額 ($)</label>
+      <input id="balance" type="number" inputmode="decimal" placeholder="例: 25000" value="25000">
     </div>
     
     <div class="field-group">
-      <label>② 許容リスク (%)</label>
-      <input id="riskPct" type="number" inputmode="decimal" placeholder="例: 1.0" value="1.0" step="0.01">
+      <label>② エントリー予定価格 (ドル)</label>
+      <input id="entryPrice" type="number" inputmode="decimal" placeholder="例: 4068.34" step="0.01">
     </div>
 
     <div class="field-group">
-      <label>③ 損切り幅 (pips)</label>
-      <input id="stopPips" type="number" inputmode="decimal" placeholder="例: 20" value="20" step="0.1">
-    </div>
-
-    <hr>
-
-    <!-- 3. ドル円レート設定 -->
-    <div class="field-group" style="margin-bottom: 0;">
-      <label>④ 現在のドル円レート (換算用)</label>
-      <span class="sub-label">※円口座でドルストレート、またはドル口座でクロス円を取引する際の換算に使用します。</span>
-      <input id="usdjpyRate" type="number" inputmode="decimal" placeholder="例: 160" value="160" step="0.01">
+      <label>③ 損切り（SL）予定価格 (ドル)</label>
+      <input id="slPrice" type="number" inputmode="decimal" placeholder="例: 4073.70" step="0.01">
     </div>
 
     <button class="btn" onclick="calc()">計算する</button>
   </div>
 
   <div class="card out" id="result" aria-live="polite">
-    ここに結果が表示されます。
+    エントリー価格とSL価格を入力して「計算する」を押してください。
   </div>
 
   <div class="muted">
-    <p><b>■ 計算の仕組み</b></p>
+    <p><b>■ ゴールド（XAUUSD）専用計算仕様</b></p>
     <ul style="padding-left: 20px; margin-top: 4px;">
-      <li>許容損失額 = 総資金額 × (許容リスク% ÷ 100)</li>
-      <li>ロット数 = 許容損失額 ÷ (損切り幅[pips] × 1ロットの1pip価値)</li>
+      <li>許容リスク：総資金の 0.5% 固定</li>
+      <li>ゴールド契約サイズ：1ロット ＝ 100オンス（1ドル動くと100ドルの損益）</li>
+      <li>利確目標（TP）：リスクリワード 1:1（利益0.5%目安）の決済目安価格を自動算出します。</li>
     </ul>
-    <p>※1ロット＝100,000通貨で計算しています。</p>
-    <p>※口座通貨と取引ペアの決済通貨（右側の通貨）が異なる場合、④に入力したドル円レートを用いて自動で価値を換算します。</p>
   </div>
 
 <script>
-// それぞれの通貨の数値を個別に記憶するオブジェクト
-const savedBalances = {
-  USD: 25000,
-  JPY: 5000000
-};
-
-// 直前の口座通貨状態を記憶
-let currentCurrency = 'JPY'; 
-
-function onCurrencyChange() {
-  const isJpy = document.getElementById('accJpy').checked;
-  const nextCurrency = isJpy ? 'JPY' : 'USD';
-  
-  const unitBalance = document.getElementById('unitBalance');
-  const balanceInput = document.getElementById('balance');
-
-  if (currentCurrency !== nextCurrency) {
-    // 現在入力されている値を現在の口座枠に保存
-    savedBalances[currentCurrency] = parseFloat(balanceInput.value) || 0;
-
-    // 切り替え先の通貨の記憶している値を入力欄にセット
-    balanceInput.value = savedBalances[nextCurrency];
-    
-    // 単位ラベルの更新
-    unitBalance.textContent = isJpy ? '円' : '$';
-
-    // 状態を更新
-    currentCurrency = nextCurrency; 
-  }
-  
-  // 結果表示をリセット
-  document.getElementById('result').innerHTML = "ここに結果が表示されます。";
-}
-
 function fmt(n, currencySymbol = '') {
   if (!isFinite(n) || isNaN(n)) return '-';
-  const formatted = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 4 }).format(n);
+  const formatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(n);
   return currencySymbol ? `${currencySymbol}${formatted}` : formatted;
+}
+
+function fmtLot(n) {
+  if (!isFinite(n) || isNaN(n)) return '-';
+  // ロット数は小数点以下2桁（海外口座の最小単位0.01に合わせる）で丸める
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(n);
 }
 
 function calc() {
   const balance = parseFloat(document.getElementById('balance').value);
-  const riskPct = parseFloat(document.getElementById('riskPct').value);
-  const stopPips = parseFloat(document.getElementById('stopPips').value);
-  const usdjpyRate = parseFloat(document.getElementById('usdjpyRate').value);
+  const entryPrice = parseFloat(document.getElementById('entryPrice').value);
+  const slPrice = parseFloat(document.getElementById('slPrice').value);
   
-  const isAccJpy = document.getElementById('accJpy').checked;   // 口座が円か
-  const isPairJpy = document.getElementById('pairJpy').checked; // 取引ペアがクロス円か
+  // 許容リスクは0.5%固定
+  const riskPct = 0.5;
 
   // 未入力・不正値チェック
-  if ([balance, riskPct, stopPips, usdjpyRate].some(v => !isFinite(v) || isNaN(v))) {
+  if ([balance, entryPrice, slPrice].some(v => !isFinite(v) || isNaN(v))) {
     document.getElementById('result').innerHTML = "未入力、または正しくない数値があります。";
     return;
   }
 
-  const contractSize = 100000; 
+  // 損切り幅（価格差）の絶対値を計算
+  const stopWidth = Math.abs(entryPrice - slPrice);
 
-  // 1pipのサイズ（クロス円: 0.01、ドルストレート: 0.0001）
-  const pipSize = isPairJpy ? 0.01 : 0.0001; 
-  
-  // 決済通貨(右側の通貨)ベースでの 1ロットあたりの1pipの価値
-  // （クロス円なら 1000 JPY、ドルストなら 10 USD になる）
-  const pipValueInQuote = contractSize * pipSize; 
-
-  // 口座通貨への換算レートを決定
-  let convRate = 1;
-  if (isAccJpy && !isPairJpy) {
-    // 【円口座】で【ドルストレート】を取引する場合 (USDを円に換算)
-    convRate = usdjpyRate;
-  } else if (!isAccJpy && isPairJpy) {
-    // 【ドル口座】で【クロス円】を取引する場合 (JPYをドルに換算)
-    convRate = 1 / usdjpyRate;
+  if (stopWidth === 0) {
+    document.getElementById('result').innerHTML = "エントリー価格とSL価格が同じです。";
+    return;
   }
-  // ※「円口座でクロス円」「ドル口座でドルスト」の場合は換算不要(1のまま)
 
-  // 口座通貨ベースの1pipの価値
-  const pipValPerLot = pipValueInQuote * convRate; 
-
-  // 許容損失額とロット数の計算
+  // 許容損失額の計算（25,000ドルなら125ドル）
   const riskAmt = balance * (riskPct / 100);
-  const lots = riskAmt / (stopPips * pipValPerLot);
+  
+  // ロット数の計算: 許容損失額 ÷ (損切り幅 × 100オンス)
+  const lots = riskAmt / (stopWidth * 100);
 
-  const symbolPrefix = isAccJpy ? '' : '$';
-  const symbolSuffix = isAccJpy ? ' 円' : '';
+  // 売買方向の判定（SLがエントリーより高ければショート、低ければロング）
+  const isShort = slPrice > entryPrice;
+  
+  // 利益目標0.5%（リスクリワード1:1）となるTP価格の算出
+  let tpPrice = 0;
+  if (isShort) {
+    tpPrice = entryPrice - stopWidth; // ショートならエントリーから引く
+  } else {
+    tpPrice = entryPrice + stopWidth; // ロングならエントリーに足す
+  }
 
   const res = `
-    <div><b>推奨ロット：</b> <span class="mono">${fmt(lots)}</span> ロット</div>
+    <div><b>推奨ロット：</b> <span class="mono">${fmtLot(lots)}</span> ロット</div>
+    <div><b>目標決済価格(TP)：</b> <span class="mono-tp">${fmt(tpPrice)}</span></div>
     <hr>
-    <div>許容損失額：${symbolPrefix}${fmt(riskAmt)}${symbolSuffix}</div>
-    <div>損切り幅：${fmt(stopPips)} pips</div>
+    <div>許容損失額 (0.5%)：$${fmt(riskAmt)}</div>
+    <div>損切り値幅：${fmt(stopWidth)} ドル</div>
+    <div>ポジション方向：${isShort ? '<span style="color:#d32f2f;font-weight:bold;">ショート(売)</span>' : '<span style="color:#388e3c;font-weight:bold;">ロング(買)</span>'}</div>
   `;
   document.getElementById('result').innerHTML = res;
 }
